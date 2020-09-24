@@ -1,15 +1,19 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\PHPRedis;
+namespace DDTrace\Tests\Integrations\PHPRedis\V5;
 
 use DDTrace\Integrations\PHPRedis\PHPRedisIntegration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Exception;
 
-class PHPRedis3Test extends IntegrationTestCase
+// Note: PHPRedis 5 has many deprecated methodsd (comapred to 4) that we still want to test
+\error_reporting(E_ALL ^ \E_DEPRECATED);
+
+class PHPRedisCluster5Test extends IntegrationTestCase
 {
     const A_STRING = 'A_STRING';
+    const A_FLOAT = 'A_FLOAT';
     const ARRAY_COUNT_1 = 'ARRAY_COUNT_1';
     const ARRAY_COUNT_2 = 'ARRAY_COUNT_2';
     const ARRAY_COUNT_3 = 'ARRAY_COUNT_3';
@@ -19,6 +23,7 @@ class PHPRedis3Test extends IntegrationTestCase
     const SCRIPT_SHA = 'e0e1f9fabfc9d4800c877a703b823ac0578ff8db';
 
     private $host = 'redis_integration';
+    private $clusterIp;
     private $port = '6379';
     private $portSecondInstance = '6380';
 
@@ -26,110 +31,30 @@ class PHPRedis3Test extends IntegrationTestCase
     private $redis;
     private $redisSecondInstance;
 
-    public function ddSetUp()
+    public function setUp()
     {
-        parent::ddSetUp();
-        $this->redis = new \Redis();
-        $this->redis->connect($this->host, $this->port);
-        $this->redisSecondInstance = new \Redis();
-        $this->redisSecondInstance->connect($this->host, $this->portSecondInstance);
+        parent::setUp();
+        $this->clusterIp = gethostbyname($this->host);
+        $connection1 = $this->clusterIp . ':7001';
+        $connection2 = $this->clusterIp . ':7002';
+        $connection3 = $this->clusterIp . ':7003';
+        $this->redis = new \RedisCluster(null, [$connection1, $connection2, $connection3]);
+        $this->redis->flushAll([$this->clusterIp, 7001]);
+        $this->redis->flushAll([$this->clusterIp, 7002]);
+        $this->redis->flushAll([$this->clusterIp, 7003]);
+        // $this->redis->flushAll(['192.168.16.5', 7004]);
+        // $this->redis->flushAll(['192.168.16.5', 7005]);
+        // $this->redis->flushAll(['192.168.16.5', 7006]);
+        // $this->redisSecondInstance = new \Redis();
+        // $this->redisSecondInstance->connect($this->host, $this->portSecondInstance);
+        // $this->redisSecondInstance->flushAll();
     }
 
-    public function ddTearDown()
+    public function tearDown()
     {
-        $this->redis->flushAll();
         $this->redis->close();
-        $this->redisSecondInstance->flushAll();
-        $this->redisSecondInstance->close();
-        parent::ddTearDown();
-    }
-
-    /**
-     * @dataProvider dataProviderTestConnectionOk
-     */
-    public function testConnectionOk($method)
-    {
-        $redis = new \Redis();
-        $traces = $this->isolateTracer(function () use ($redis, $method) {
-            $redis->$method($this->host);
-        });
-        $redis->close();
-
-        $this->assertFlameGraph($traces, [
-            SpanAssertion::build(
-                "Redis.$method",
-                'phpredis',
-                'redis',
-                "Redis.$method"
-            )->withExactTags([
-                'out.host' => $this->host,
-                'out.port' => $this->port,
-            ]),
-        ]);
-    }
-
-    public function dataProviderTestConnectionOk()
-    {
-        return [
-            'connect' => ['connect'],
-            'pconnect' => ['pconnect'],
-            'open' => ['open'],
-            'popen' => ['popen'],
-        ];
-    }
-
-    /**
-     * @dataProvider dataProviderTestConnectionError
-     */
-    public function testConnectionError($host, $port, $method)
-    {
-        $redis = new \Redis();
-        $traces = $this->isolateTracer(function () use ($redis, $method, $host, $port) {
-            try {
-                if (null !== $host && null !== $port) {
-                    $redis->$method($host, $port);
-                } elseif (null !== $host) {
-                    $redis->$method($host);
-                }
-            } catch (\Exception $e) {
-            }
-        });
-
-        $this->assertFlameGraph($traces, [
-            SpanAssertion::build(
-                "Redis.$method",
-                'phpredis',
-                'redis',
-                "Redis.$method"
-            )
-            ->setError()
-            ->withExactTags([
-                'out.host' => $host,
-                'out.port' => $port ?: $this->port,
-            ])
-            ->withExistingTagsNames(['error.msg', 'error.stack']),
-        ]);
-    }
-
-    public function dataProviderTestConnectionError()
-    {
-        return [
-            // Unreachable
-            'connect host unreachable' => ['not_existing_host', null, 'connect'],
-            'open host unreachable' => ['not_existing_host', null, 'open'],
-            'pconnect host unreachable' => ['not_existing_host', null, 'pconnect'],
-            'popen host unreachable' => ['not_existing_host', null, 'popen'],
-            // Not listening
-            'connect host not listening' => ['127.0.01', null, 'connect'],
-            'open host not listening' => ['127.0.01', null, 'open'],
-            'pconnect host not listening' => ['127.0.01', null, 'pconnect'],
-            'popen host not listening' => ['127.0.01', null, 'popen'],
-            // Wrong port
-            'connect wrong port' => [$this->host, 1111, 'connect'],
-            'open wrong port' => [$this->host, 1111, 'open'],
-            'pconnect wrong port' => [$this->host, 1111, 'pconnect'],
-            'popen wrong port' => [$this->host, 1111, 'popen'],
-        ];
+        // $this->redisSecondInstance->close();
+        parent::tearDown();
     }
 
     public function testClose()
@@ -142,10 +67,10 @@ class PHPRedis3Test extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.close",
+                "RedisCluster.close",
                 'phpredis',
                 'redis',
-                "Redis.close"
+                "RedisCluster.close"
             ),
         ]);
     }
@@ -176,10 +101,10 @@ class PHPRedis3Test extends IntegrationTestCase
         $rawCommand = empty($rawCommand) ? $method : "$method $rawCommand";
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.$method",
+                "RedisCluster.$method",
                 'phpredis',
                 'redis',
-                "Redis.$method"
+                "RedisCluster.$method"
             )->withExactTags(['redis.raw_command' => $rawCommand]),
         ]);
     }
@@ -189,21 +114,16 @@ class PHPRedis3Test extends IntegrationTestCase
         return [
             ['del', ['k1'], 'k1'],
             ['del', [['k1', 'k2']], 'k1 k2'],
-            ['delete', ['k1'], 'k1'],
-            ['delete', [['k1', 'k2']], 'k1 k2'],
             ['exists', ['k1'], 'k1'],
-            ['setTimeout', ['k1', 2], 'k1 2'],
             ['expire', ['k1', 2], 'k1 2'],
             ['pexpire', ['k1', 2], 'k1 2'],
             ['expireAt', ['k1', 2], 'k1 2'],
             ['keys', ['*'], '*'],
-            ['getKeys', ['*'], '*'],
             ['scan', [null], '0'], // the argument is the LONG (reference), initialized to NULL
             ['object', ['encoding', 'k1'], 'encoding k1'],
             ['persist', ['k1'], 'k1'],
             ['randomKey', [], ''],
             ['rename', ['k1', 'k3'], 'k1 k3'],
-            ['renameKey', ['k1', 'k3'], 'k1 k3'],
             ['renameNx', ['k1', 'k3'], 'k1 k3'],
             ['type', ['k1'], 'k1'],
             ['sort', ['k1'], 'k1'],
@@ -225,10 +145,10 @@ class PHPRedis3Test extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.$method",
+                "RedisCluster.$method",
                 'phpredis',
                 'redis',
-                "Redis.$method"
+                "RedisCluster.$method"
             ),
         ]);
     }
@@ -236,7 +156,6 @@ class PHPRedis3Test extends IntegrationTestCase
     public function dataProviderTestMethodsSimpleSpan()
     {
         return [
-            'auth' => ['auth', 'user'],
             'ping' => ['ping', null],
             'echo' => ['echo', 'hey'],
             'save' => ['save', null],
@@ -245,23 +164,6 @@ class PHPRedis3Test extends IntegrationTestCase
             'flushAll' => ['flushAll', null],
             'flushDb' => ['flushDb', null],
         ];
-    }
-
-    public function testSelect()
-    {
-        $redis = $this->redis;
-        $traces = $this->isolateTracer(function () use ($redis) {
-            $redis->select(1);
-        });
-
-        $this->assertFlameGraph($traces, [
-            SpanAssertion::build(
-                "Redis.select",
-                'phpredis',
-                'redis',
-                "Redis.select"
-            )->withExactTags(['db.index' => '1']),
-        ]);
     }
 
     /**
@@ -289,10 +191,10 @@ class PHPRedis3Test extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.$method",
+                "RedisCluster.$method",
                 'phpredis',
                 'redis',
-                "Redis.$method"
+                "RedisCluster.$method"
             )->withExactTags(['redis.raw_command' => $rawCommand]),
         ]);
 
@@ -406,25 +308,11 @@ class PHPRedis3Test extends IntegrationTestCase
                 'value', // initial "0010 1010"
             ],
             [
-                'setTimeout', // method
-                [ 'k1', 6 ], // arguments
-                'value', // expected final value
-                'setTimeout k1 6', // raw command
-                'value', // initial "0010 1010"
-            ],
-            [
                 'pexpire', // method
                 [ 'k1', 6 ], // arguments
                 'value', // expected final value
                 'pexpire k1 6', // raw command
                 'value', // initial "0010 1010"
-            ],
-            [
-                'delete', // method
-                [ 'k1'], // arguments
-                false, // expected final value
-                'delete k1', // raw command
-                'v1', // initial
             ],
         ];
     }
@@ -439,10 +327,10 @@ class PHPRedis3Test extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.mSet",
+                "RedisCluster.mSet",
                 'phpredis',
                 'redis',
-                "Redis.mSet"
+                "RedisCluster.mSet"
             )->withExactTags(['redis.raw_command' => 'mSet k1 v1 k2 v2']),
         ]);
 
@@ -460,10 +348,10 @@ class PHPRedis3Test extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.mSetNx",
+                "RedisCluster.mSetNx",
                 'phpredis',
                 'redis',
-                "Redis.mSetNx"
+                "RedisCluster.mSetNx"
             )->withExactTags(['redis.raw_command' => 'mSetNx k1 v1 k2 v2']),
         ]);
 
@@ -481,10 +369,10 @@ class PHPRedis3Test extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.rawCommand",
+                "RedisCluster.rawCommand",
                 'phpredis',
                 'redis',
-                "Redis.rawCommand"
+                "RedisCluster.rawCommand"
             )->withExactTags(['redis.raw_command' => 'rawCommand set k1 v1']),
         ]);
 
@@ -516,10 +404,10 @@ class PHPRedis3Test extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.$method",
+                "RedisCluster.$method",
                 'phpredis',
                 'redis',
-                "Redis.$method"
+                "RedisCluster.$method"
             )->withExactTags(['redis.raw_command' => $rawCommand]),
         ]);
         $this->assertSame($expected, $result);
@@ -570,13 +458,6 @@ class PHPRedis3Test extends IntegrationTestCase
                 [ 'k1' => 'v1', 'k2' => 'v2'], // initial
             ],
             [
-                'getMultiple', // method
-                [ ['k1', 'k2'] ], // arguments
-                [ 'v1', 'v2' ], // expected final value
-                'getMultiple k1 k2', // raw command
-                [ 'k1' => 'v1', 'k2' => 'v2'], // initial
-            ],
-            [
                 'strLen', // method
                 [ 'k1'], // arguments
                 3, // expected final value
@@ -593,15 +474,8 @@ class PHPRedis3Test extends IntegrationTestCase
             [
                 'exists', // method
                 [ 'k1'], // arguments
-                true, // expected final value
+                1, // expected final value
                 'exists k1', // raw command
-                ['k1' => 'v1'], // initial
-            ],
-            [
-                'getKeys', // method
-                [ '*'], // arguments
-                [ 'k1' ], // expected final value
-                'getKeys *', // raw command
                 ['k1' => 'v1'], // initial
             ],
             [
@@ -638,10 +512,10 @@ class PHPRedis3Test extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.$method",
+                "RedisCluster.$method",
                 'phpredis',
                 'redis',
-                "Redis.$method"
+                "RedisCluster.$method"
             )->withExactTags(['redis.raw_command' => $rawCommand]),
         ]);
 
@@ -787,17 +661,17 @@ class PHPRedis3Test extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.$method",
+                "RedisCluster.$method",
                 'phpredis',
                 'redis',
-                "Redis.$method"
+                "RedisCluster.$method"
             )->withExactTags(['redis.raw_command' => $rawCommand]),
         ]);
 
         $this->assertSame($expectedResult, $result);
 
         foreach ($expectedFinal as $list => $values) {
-            $this->assertCount($this->redis->lSize($list), $values);
+            $this->assertCount($this->redis->lLen($list), $values);
             for ($element = 0; $element < count($values); $element++) {
                 $this->assertSame($expectedFinal[$list][$element], $this->redis->lGet($list, $element));
             }
@@ -890,14 +764,14 @@ class PHPRedis3Test extends IntegrationTestCase
                 'lLen l1', // raw command
             ],
             [
-                'lSize', // method
+                'lLen', // method
                 [ 'l1' ], // arguments
                 2, // expected result
                 [
                     'l1' => $l1,
                     'l2' => $l2,
                 ], // expected final value
-                'lSize l1', // raw command
+                'lLen l1', // raw command
             ],
             [
                 'lPop', // method
@@ -940,16 +814,6 @@ class PHPRedis3Test extends IntegrationTestCase
                 'lRange l1 0 0', // raw command
             ],
             [
-                'lGetRange', // method
-                [ 'l1', '0', '0' ], // arguments
-                [ 'v1' ], // expected result
-                [
-                    'l1' => $l1,
-                    'l2' => $l2,
-                ], // expected final value
-                'lGetRange l1 0 0', // raw command
-            ],
-            [
                 'lRem', // method
                 [ 'l1', 'v1', '2' ], // arguments
                 1, // expected result
@@ -958,16 +822,6 @@ class PHPRedis3Test extends IntegrationTestCase
                     'l2' => $l2,
                 ], // expected final value
                 'lRem l1 v1 2', // raw command
-            ],
-            [
-                'lRemove', // method
-                [ 'l1', 'v1', '2' ], // arguments
-                1, // expected result
-                [
-                    'l1' => [ 'v2' ],
-                    'l2' => $l2,
-                ], // expected final value
-                'lRemove l1 v1 2', // raw command
             ],
             [
                 'lSet', // method
@@ -988,16 +842,6 @@ class PHPRedis3Test extends IntegrationTestCase
                     'l2' => $l2,
                 ], // expected final value
                 'lTrim l1 1 2', // raw command
-            ],
-            [
-                'listTrim', // method
-                [ 'l1', 1, 2 ], // arguments
-                true, // expected result
-                [
-                    'l1' => [ 'v2' ],
-                    'l2' => $l2,
-                ], // expected final value
-                'listTrim l1 1 2', // raw command
             ],
             [
                 'rPop', // method
@@ -1057,10 +901,10 @@ class PHPRedis3Test extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.$method",
+                "RedisCluster.$method",
                 'phpredis',
                 'redis',
-                "Redis.$method"
+                "RedisCluster.$method"
             )->withExactTags(['redis.raw_command' => $rawCommand]),
         ]);
 
@@ -1081,7 +925,7 @@ class PHPRedis3Test extends IntegrationTestCase
         }
 
         foreach ($expectedFinal as $set => $value) {
-            $this->assertSame($this->redis->sSize($set), $value);
+            $this->assertSame($this->redis->scard($set), $value);
         }
     }
 
@@ -1103,11 +947,11 @@ class PHPRedis3Test extends IntegrationTestCase
                 'sCard s1', // raw command
             ],
             [
-                'sSize', // method
+                'scard', // method
                 [ 's1' ], // arguments
                 3, // expected result
                 [ 's1' => 3, 's2' => 3 ], // expected final value
-                'sSize s1', // raw command
+                'scard s1', // raw command
             ],
             [
                 'sDiff', // method
@@ -1145,25 +989,11 @@ class PHPRedis3Test extends IntegrationTestCase
                 'sIsMember s1 v3', // raw command
             ],
             [
-                'sContains', // method
-                [ 's1', 'v3' ], // arguments
-                true, // expected result
-                [ 's1' => 3, 's2' => 3 ], // expected final value
-                'sContains s1 v3', // raw command
-            ],
-            [
                 'sMembers', // method
                 [ 's1' ], // arguments
                 self::ARRAY_COUNT_3, // expected result
                 [ 's1' => 3, 's2' => 3 ], // expected final value
                 'sMembers s1', // raw command
-            ],
-            [
-                'sGetMembers', // method
-                [ 's1' ], // arguments
-                self::ARRAY_COUNT_3, // expected result
-                [ 's1' => 3, 's2' => 3 ], // expected final value
-                'sGetMembers s1', // raw command
             ],
             [
                 'sMove', // method
@@ -1192,13 +1022,6 @@ class PHPRedis3Test extends IntegrationTestCase
                 1, // expected result
                 [ 's1' => 2, 's2' => 3 ], // expected final value
                 'sRem s1 v1', // raw command
-            ],
-            [
-                'sRemove', // method
-                [ 's1', 'v1' ], // arguments
-                1, // expected result
-                [ 's1' => 2, 's2' => 3 ], // expected final value
-                'sRemove s1 v1', // raw command
             ],
             [
                 'sUnion', // method
@@ -1253,10 +1076,10 @@ class PHPRedis3Test extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.$method",
+                "RedisCluster.$method",
                 'phpredis',
                 'redis',
-                "Redis.$method"
+                "RedisCluster.$method"
             )->withExactTags(['redis.raw_command' => $rawCommand]),
         ]);
 
@@ -1277,7 +1100,7 @@ class PHPRedis3Test extends IntegrationTestCase
         }
 
         foreach ($expectedFinal as $set => $value) {
-            $this->assertSame($this->redis->zSize($set), $value);
+            $this->assertSame($this->redis->zCount($set), $value);
         }
     }
 
@@ -1299,11 +1122,11 @@ class PHPRedis3Test extends IntegrationTestCase
                 'zCard s1', // raw command
             ],
             [
-                'zSize', // method
+                'zCount', // method
                 [ 's1' ], // arguments
                 3, // expected result
                 [ 's1' => 3, 's2' => 3 ], // expected final sizes
-                'zSize s1', // raw command
+                'zCount s1', // raw command
             ],
             [
                 'zCount', // method
@@ -1320,11 +1143,11 @@ class PHPRedis3Test extends IntegrationTestCase
                 'zIncrBy s1 2.5 v1', // raw command
             ],
             [
-                'zInter', // method
+                'zInterstore', // method
                 [ 'out', ['s1', 's2'] ], // arguments
                 1, // expected result
                 [ 's1' => 3, 's2' => 3, 'out' => 1 ], // expected final sizes
-                'zInter out s1 s2', // raw command
+                'zInterstore out s1 s2', // raw command
             ],
             [
                 'zRange', // method
@@ -1376,25 +1199,11 @@ class PHPRedis3Test extends IntegrationTestCase
                 'zRem s1 v2', // raw command
             ],
             [
-                'zDelete', // method
-                [ 's1', 'v2' ], // arguments
-                1, // expected result
-                [ 's1' => 2, 's2' => 3, ], // expected final sizes
-                'zDelete s1 v2', // raw command
-            ],
-            [
                 'zRemRangeByRank', // method
                 [ 's1', 0, 1 ], // arguments
                 2, // expected result
                 [ 's1' => 1, 's2' => 3, ], // expected final sizes
                 'zRemRangeByRank s1 0 1', // raw command
-            ],
-            [
-                'zDeleteRangeByRank', // method
-                [ 's1', 0, 1 ], // arguments
-                2, // expected result
-                [ 's1' => 1, 's2' => 3, ], // expected final sizes
-                'zDeleteRangeByRank s1 0 1', // raw command
             ],
             [
                 'zRemRangeByScore', // method
@@ -1404,18 +1213,25 @@ class PHPRedis3Test extends IntegrationTestCase
                 'zRemRangeByScore s1 0 1', // raw command
             ],
             [
-                'zDeleteRangeByScore', // method
-                [ 's1', 0, 1 ], // arguments
-                2, // expected result
-                [ 's1' => 1, 's2' => 3, ], // expected final sizes
-                'zDeleteRangeByScore s1 0 1', // raw command
-            ],
-            [
                 'zRevRange', // method
                 [ 's1', 0, -2 ], // arguments
                 [ 'v3', 'v1' ], // expected result
                 [ 's1' => 3, 's2' => 3, ], // expected final sizes
                 'zRevRange s1 0 -2', // raw command
+            ],
+            [
+                'zPopMax', // method
+                [ 's1', 1 ], // arguments
+                [ 'v3' => 5.0 ], // expected result
+                [ 's1' => 2, 's2' => 3, ], // expected final sizes
+                'zPopMax s1 1', // raw command
+            ],
+            [
+                'zPopMin', // method
+                [ 's1', 1 ], // arguments
+                [ 'v2' => 0.0 ], // expected result
+                [ 's1' => 2, 's2' => 3, ], // expected final sizes
+                'zPopMin s1 1', // raw command
             ],
             [
                 'zScore', // method
@@ -1425,11 +1241,11 @@ class PHPRedis3Test extends IntegrationTestCase
                 'zScore s1 v3', // raw command
             ],
             [
-                'zUnion', // method
+                'zunionstore', // method
                 [ 'out', ['s1', 's2'] ], // arguments
                 5, // expected result
                 [ 's1' => 3, 's2' => 3, 'out' => 5 ], // expected final sizes
-                'zUnion out s1 s2', // raw command
+                'zunionstore out s1 s2', // raw command
             ],
             [
                 'zScan', // method
@@ -1449,10 +1265,10 @@ class PHPRedis3Test extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.publish",
+                "RedisCluster.publish",
                 'phpredis',
                 'redis',
-                "Redis.publish"
+                "RedisCluster.publish"
             )->withExactTags(['redis.raw_command' => 'publish ch1 hi']),
         ]);
     }
@@ -1468,28 +1284,28 @@ class PHPRedis3Test extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.multi",
+                "RedisCluster.multi",
                 'phpredis',
                 'redis',
-                "Redis.multi"
+                "RedisCluster.multi"
             )->withExactTags(['redis.raw_command' => 'multi']),
             SpanAssertion::build(
-                "Redis.set",
+                "RedisCluster.set",
                 'phpredis',
                 'redis',
-                "Redis.set"
+                "RedisCluster.set"
             )->withExactTags(['redis.raw_command' => 'set k1 v1']),
             SpanAssertion::build(
-                "Redis.get",
+                "RedisCluster.get",
                 'phpredis',
                 'redis',
-                "Redis.get"
+                "RedisCluster.get"
             )->withExactTags(['redis.raw_command' => 'get k1']),
             SpanAssertion::build(
-                "Redis.exec",
+                "RedisCluster.exec",
                 'phpredis',
                 'redis',
-                "Redis.exec"
+                "RedisCluster.exec"
             )->withExactTags(['redis.raw_command' => 'exec']),
         ]);
     }
@@ -1519,10 +1335,10 @@ class PHPRedis3Test extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.$method",
+                "RedisCluster.$method",
                 'phpredis',
                 'redis',
-                "Redis.$method"
+                "RedisCluster.$method"
             )->withExactTags(['redis.raw_command' => $rawCommand]),
         ]);
         $this->assertEquals($expectedResult, $result);
@@ -1576,78 +1392,6 @@ class PHPRedis3Test extends IntegrationTestCase
         ];
     }
 
-    /**
-     * @dataProvider dataProviderTestIntrospectionFunctions
-     */
-    public function testIntrospectionFunctions($method, $args, $expectedResult, /*$expectedFinal, */$rawCommand)
-    {
-        $result = null;
-
-        $traces = $this->isolateTracer(function () use ($method, $args, &$result) {
-            if (count($args) === 0) {
-                $result = $this->redis->$method();
-            } elseif (count($args) === 1) {
-                $result = $this->redis->$method($args[0]);
-            } elseif (count($args) === 2) {
-                $result = $this->redis->$method($args[0], $args[1]);
-            } else {
-                throw new \Exception('Number of arguments not supported: ' . \count($args));
-            }
-        });
-
-        $this->assertFlameGraph($traces, [
-            SpanAssertion::build(
-                "Redis.$method",
-                'phpredis',
-                'redis',
-                "Redis.$method"
-            )->withExactTags(['redis.raw_command' => $rawCommand]),
-        ]);
-        $this->assertEquals($expectedResult, $result);
-    }
-
-    public function dataProviderTestIntrospectionFunctions()
-    {
-        return [
-            [
-                'isConnected', // method
-                [], // arguments
-                true, // expected result
-                'isConnected', // raw command
-            ],
-            [
-                'getHost', // method
-                [], // arguments
-                $this->host, // expected result
-                'getHost', // raw command
-            ],
-            [
-                'getPort', // method
-                [], // arguments
-                $this->port, // expected result
-                'getPort', // raw command
-            ],
-            [
-                'getDbNum', // method
-                [], // arguments
-                0, // expected result
-                'getDbNum', // raw command
-            ],
-            [
-                'getTimeout', // method
-                [], // arguments
-                0, // expected result
-                'getTimeout', // raw command
-            ],
-            [
-                'getReadTimeout', // method
-                [], // arguments
-                0, // expected result
-                'getReadTimeout', // raw command
-            ],
-        ];
-    }
-
     public function testDumpRestore()
     {
         $redis = $this->redis;
@@ -1660,16 +1404,16 @@ class PHPRedis3Test extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.dump",
+                "RedisCluster.dump",
                 'phpredis',
                 'redis',
-                "Redis.dump"
+                "RedisCluster.dump"
             )->withExactTags(['redis.raw_command' => 'dump k1']),
             SpanAssertion::build(
-                "Redis.restore",
+                "RedisCluster.restore",
                 'phpredis',
                 'redis',
-                "Redis.restore"
+                "RedisCluster.restore"
             ),
         ]);
 
@@ -1692,10 +1436,10 @@ class PHPRedis3Test extends IntegrationTestCase
         });
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.migrate",
+                "RedisCluster.migrate",
                 'phpredis',
                 'redis',
-                "Redis.migrate"
+                "RedisCluster.migrate"
             )->withExactTags(['redis.raw_command' => "migrate redis_integration 6380 k1 0 3600"]),
         ]);
 
@@ -1704,10 +1448,10 @@ class PHPRedis3Test extends IntegrationTestCase
         });
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.migrate",
+                "RedisCluster.migrate",
                 'phpredis',
                 'redis',
-                "Redis.migrate"
+                "RedisCluster.migrate"
             )->withExactTags(['redis.raw_command' => "migrate redis_integration 6380 k2 k3 0 3600"]),
         ]);
 
@@ -1719,45 +1463,281 @@ class PHPRedis3Test extends IntegrationTestCase
         $this->assertFalse($this->redis->get('k3'));
     }
 
-    public function testMove()
+    /**
+     * @dataProvider dataProviderTestGeocodingFunctions
+     */
+    public function testGeocodingFunctions($method, $args, $expectedResult, /*$expectedFinal, */$rawCommand)
     {
-        $this->redis->select(0);
-        $this->redis->set('k1', 'v1');
-        $traces = $this->isolateTracer(function () {
-            $this->redis->move('k1', 1);
+        $result = null;
+        $initial = $this->redis->geoAdd('existing', -122.431, 37.773, 'San Francisco', -157.858, 21.315, 'Honolulu');
+
+        $traces = $this->isolateTracer(function () use ($method, $args, &$result) {
+            if (count($args) === 0) {
+                $result = $this->redis->$method();
+            } elseif (count($args) === 1) {
+                $result = $this->redis->$method($args[0]);
+            } elseif (count($args) === 2) {
+                $result = $this->redis->$method($args[0], $args[1]);
+            } elseif (count($args) === 4) {
+                $result = $this->redis->$method($args[0], $args[1], $args[2], $args[3]);
+            } elseif (count($args) === 5) {
+                $result = $this->redis->$method($args[0], $args[1], $args[2], $args[3], $args[4]);
+            } else {
+                throw new \Exception('Number of arguments not supported: ' . \count($args));
+            }
         });
-        $this->redis->select(1);
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.move",
+                "RedisCluster.$method",
                 'phpredis',
                 'redis',
-                "Redis.move"
-            )->withExactTags(['redis.raw_command' => "move k1 1"]),
+                "RedisCluster.$method"
+            )->withExactTags(['redis.raw_command' => $rawCommand]),
         ]);
 
-        $this->assertSame('v1', $this->redis->get('k1'));
+        if ($expectedResult === self::A_FLOAT) {
+            $this->assertTrue(\is_float($result));
+        } elseif ($expectedResult === self::ARRAY_COUNT_1) {
+            $this->assertCount(1, $result);
+        } else {
+            $this->assertSame($expectedResult, $result);
+        }
     }
 
-    public function testRenameKey()
+    public function dataProviderTestGeocodingFunctions()
     {
-        $this->redis->set('k1', 'v1');
-        $traces = $this->isolateTracer(function () {
-            $this->redis->renameKey('k1', 'k2');
-        });
+        return [
+            [
+                'geoAdd', // method
+                [ 'k1', 2.349014, 48.864716, 'Paris' ], // arguments
+                1, // expected result
+                'geoAdd k1 2.349014 48.864716 Paris', // raw command
+            ],
+            [
+                'geoHash', // method
+                [ 'existing', 'San Francisco' ], // arguments
+                [ '9q8yyh27wv0' ], // expected result
+                'geoHash existing San Francisco', // raw command
+            ],
+            [
+                'geoPos', // method
+                [ 'existing', 'San Francisco' ], // arguments
+                // This is the definition of 'flakiness'. Let's see how it is in CI and in case we can reconsider.
+                self::ARRAY_COUNT_1, // expected result
+                'geoPos existing San Francisco', // raw command
+            ],
+            [
+                'geoDist', // method
+                [ 'existing', 'San Francisco', 'Honolulu', 'm' ], // arguments
+                // This is the definition of 'flakiness'. Let's see how it is in CI and in case we can reconsider.
+                self::A_FLOAT, // expected result
+                'geoDist existing San Francisco Honolulu m', // raw command
+            ],
+            [
+                'geoRadius', // method
+                [ 'existing', -122.431, 37.773, 100, 'km' ], // arguments
+                // This is the definition of 'flakiness'. Let's see how it is in CI and in case we can reconsider.
+                [ 'San Francisco' ], // expected result
+                'geoRadius existing -122.431 37.773 100 km', // raw command
+            ],
+            [
+                'geoRadiusByMember', // method
+                [ 'existing', 'San Francisco', 100, 'km' ], // arguments
+                // This is the definition of 'flakiness'. Let's see how it is in CI and in case we can reconsider.
+                [ 'San Francisco' ], // expected result
+                'geoRadiusByMember existing San Francisco 100 km', // raw command
+            ],
+        ];
+    }
 
+    /**
+     * Various stream methods are very dependent on each other, so we test them sequentially.
+     * This at the cost of test readability, but otherwise it would add too much complexity in setting up fixtures.
+     */
+    public function testStreamsFunctions()
+    {
+        // xAdd
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xAdd('s1', '123-456', [ 'k1' => 'v1' ]);
+            $this->assertSame('123-456', $result);
+        });
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.renameKey",
+                "RedisCluster.xAdd",
                 'phpredis',
                 'redis',
-                "Redis.renameKey"
-            )->withExactTags(['redis.raw_command' => "renameKey k1 k2"]),
+                "RedisCluster.xAdd"
+            )->withExactTags(['redis.raw_command' => 'xAdd s1 123-456 k1 v1']),
         ]);
 
-        $this->assertFalse($this->redis->get('k1'));
-        $this->assertSame('v1', $this->redis->get('k2'));
+        // xGroup
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xGroup('CREATE', 's1', 'group1', '0');
+            $this->assertSame(true, $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.xGroup",
+                'phpredis',
+                'redis',
+                "RedisCluster.xGroup"
+            )->withExactTags(['redis.raw_command' => 'xGroup CREATE s1 group1 0']),
+        ]);
+
+        // xInfo
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xInfo('GROUPS', 's1');
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.xInfo",
+                'phpredis',
+                'redis',
+                "RedisCluster.xInfo"
+            )->withExactTags(['redis.raw_command' => 'xInfo GROUPS s1']),
+        ]);
+
+        // xLen
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xLen('s1');
+            $this->assertSame(1, $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.xLen",
+                'phpredis',
+                'redis',
+                "RedisCluster.xLen"
+            )->withExactTags(['redis.raw_command' => 'xLen s1']),
+        ]);
+
+        // xPending
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xPending('s1', 'group1');
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.xPending",
+                'phpredis',
+                'redis',
+                "RedisCluster.xPending"
+            )->withExactTags(['redis.raw_command' => 'xPending s1 group1']),
+        ]);
+
+        // xRange
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xRange('s1', '-', '+');
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.xRange",
+                'phpredis',
+                'redis',
+                "RedisCluster.xRange"
+            )->withExactTags(['redis.raw_command' => 'xRange s1 - +']),
+        ]);
+
+        // xRevRange
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xRevRange('s1', '+', '-');
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.xRevRange",
+                'phpredis',
+                'redis',
+                "RedisCluster.xRevRange"
+            )->withExactTags(['redis.raw_command' => 'xRevRange s1 + -']),
+        ]);
+
+        // xRead
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xRead(['s1' => '$']);
+            $this->assertSame([], $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.xRead",
+                'phpredis',
+                'redis',
+                "RedisCluster.xRead"
+            )->withExactTags(['redis.raw_command' => 'xRead s1 $']),
+        ]);
+
+        // xReadGroup
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xReadGroup('group1', 'consumer1', ['s1' => '>']);
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.xReadGroup",
+                'phpredis',
+                'redis',
+                "RedisCluster.xReadGroup"
+            )->withExactTags(['redis.raw_command' => 'xReadGroup group1 consumer1 s1 >']),
+        ]);
+
+        // xAck
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xAck('s1', 'group1', ['s1' => '123-456']);
+            $this->assertSame(1, $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.xAck",
+                'phpredis',
+                'redis',
+                "RedisCluster.xAck"
+            )->withExactTags(['redis.raw_command' => 'xAck s1 group1 s1 123-456']),
+        ]);
+
+        // xClaim
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xClaim('s1', 'group1', 'consumer1', 0, ['s1' => '123-456']);
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.xClaim",
+                'phpredis',
+                'redis',
+                "RedisCluster.xClaim"
+            )->withExactTags(['redis.raw_command' => 'xClaim s1 group1 consumer1 0 s1 123-456']),
+        ]);
+
+        // xDel
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xDel('s1', ['123-456']);
+            $this->assertSame(1, $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.xDel",
+                'phpredis',
+                'redis',
+                "RedisCluster.xDel"
+            )->withExactTags(['redis.raw_command' => 'xDel s1 123-456']),
+        ]);
+
+        // xTrim
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xTrim('s1', 0);
+            $this->assertSame(0, $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.xTrim",
+                'phpredis',
+                'redis',
+                "RedisCluster.xTrim"
+            )->withExactTags(['redis.raw_command' => 'xTrim s1 0']),
+        ]);
     }
 
     public function testSetGetWithBinarySafeStringsAsValue()
@@ -1769,16 +1749,16 @@ class PHPRedis3Test extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.set",
+                "RedisCluster.set",
                 'phpredis',
                 'redis',
-                "Redis.set"
+                "RedisCluster.set"
             )->withExistingTagsNames(['redis.raw_command']),
             SpanAssertion::build(
-                "Redis.get",
+                "RedisCluster.get",
                 'phpredis',
                 'redis',
-                "Redis.get"
+                "RedisCluster.get"
             )->withExistingTagsNames(['redis.raw_command']),
         ]);
     }
@@ -1793,16 +1773,16 @@ class PHPRedis3Test extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.set",
+                "RedisCluster.set",
                 'phpredis',
                 'redis',
-                "Redis.set"
+                "RedisCluster.set"
             )->withExistingTagsNames(['redis.raw_command']),
             SpanAssertion::build(
-                "Redis.get",
+                "RedisCluster.get",
                 'phpredis',
                 'redis',
-                "Redis.get"
+                "RedisCluster.get"
             )->withExistingTagsNames(['redis.raw_command']),
         ]);
     }

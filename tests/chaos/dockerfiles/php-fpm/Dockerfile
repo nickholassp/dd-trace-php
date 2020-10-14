@@ -12,10 +12,6 @@ ADD redis.ini /usr/local/etc/php/conf.d/redis.ini
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-ARG TRACER_DOWNLOAD_URL
-RUN curl -o /tmp/dd-trace-php.deb -L ${TRACER_DOWNLOAD_URL}
-RUN dpkg -i /tmp/dd-trace-php.deb
-
 ADD www.conf /usr/local/etc/php-fpm.d/www.conf
 
 RUN mkdir -p /coredumps

@@ -12,5 +12,6 @@ class Controller
         } else {
             $service->doSomethingUntraced();
         }
+        return "OK";
     }
 }

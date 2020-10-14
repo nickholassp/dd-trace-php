@@ -6,7 +6,7 @@ services:
     build:
       context: dockerfiles/vegeta
     environment:
-      DURATION: 10s
+      DURATION: 60s
     depends_on:
       - nginx
 
@@ -25,17 +25,17 @@ services:
       core: 99999999999
     build:
       context: dockerfiles/php-fpm
-      args:
-        TRACER_DOWNLOAD_URL: ${TRACER_DOWNLOAD_URL}
     privileged: true
     volumes:
       - composer_cache:/root/.composer
       - ./app:/var/www/html
     environment:
+      TRACER_DOWNLOAD_URL: https://github.com/DataDog/dd-trace-php/releases/download/0.48.1/datadog-php-tracer_0.48.1_amd64.deb
       DD_AGENT_HOST: agent
       DD_TRACE_DEBUG: 'false'
       DD_SERVICE: random_tests
       DD_ENV: entrophy
+      DD_TRACE_ENABLED: 'true'
     depends_on:
       - agent
       - redis

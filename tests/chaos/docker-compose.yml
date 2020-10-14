@@ -2,8 +2,11 @@ version: '3.7'
 
 services:
 
-  load:
-    image: peterevans/vegeta
+  loadtest:
+    build:
+      context: dockerfiles/vegeta
+    environment:
+      DURATION: 10s
     depends_on:
       - nginx
 
@@ -18,10 +21,13 @@ services:
       - php-fpm
 
   php-fpm:
+    ulimits:
+      core: 99999999999
     build:
       context: dockerfiles/php-fpm
       args:
         TRACER_DOWNLOAD_URL: ${TRACER_DOWNLOAD_URL}
+    privileged: true
     volumes:
       - composer_cache:/root/.composer
       - ./app:/var/www/html

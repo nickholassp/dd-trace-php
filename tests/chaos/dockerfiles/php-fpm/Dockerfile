@@ -1,7 +1,7 @@
 FROM php:7.3-fpm
 
 RUN apt-get update \
-    && apt-get install -y tcpdump wget gnupg2 \
+    && apt-get install -y tcpdump wget gnupg2 procps \
     && apt-get clean
 
 RUN docker-php-ext-install opcache
@@ -17,3 +17,10 @@ RUN curl -o /tmp/dd-trace-php.deb -L ${TRACER_DOWNLOAD_URL}
 RUN dpkg -i /tmp/dd-trace-php.deb
 
 ADD www.conf /usr/local/etc/php-fpm.d/www.conf
+
+RUN mkdir -p /coredumps
+RUN chown -R www-data:www-data /coredumps
+
+ADD entrypoint.sh /entrypoint.sh
+
+CMD /entrypoint.sh

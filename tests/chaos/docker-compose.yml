@@ -2,6 +2,11 @@ version: '3.7'
 
 services:
 
+  load:
+    image: peterevans/vegeta
+    depends_on:
+      - nginx
+
   nginx:
     image: nginx
     ports:
@@ -34,7 +39,12 @@ services:
     image: redis:latest
 
   mysql:
-    image: mysql:latest
+    image: mysql:5.7
+    environment:
+      - MYSQL_ROOT_PASSWORD=test
+      - MYSQL_PASSWORD=test
+      - MYSQL_USER=test
+      - MYSQL_DATABASE=test
 
   agent:
     image: datadog/agent:latest

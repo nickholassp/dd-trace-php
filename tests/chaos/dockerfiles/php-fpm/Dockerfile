@@ -5,6 +5,10 @@ RUN apt-get update \
     && apt-get clean
 
 RUN docker-php-ext-install opcache
+RUN docker-php-ext-install mysqli
+
+RUN pecl install redis
+ADD redis.ini /usr/local/etc/php/conf.d/redis.ini
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 

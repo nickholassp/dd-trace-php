@@ -7,6 +7,10 @@ class Controller
     public function action()
     {
         $service = new Service();
-        echo $service->doSomething();
+        if (\rand(0, 1) === 1) {
+            $service->doSomethingTraced();
+        } else {
+            $service->doSomethingUntraced();
+        }
     }
 }

@@ -1,0 +1,49 @@
+version: '3.7'
+
+services:
+
+  nginx:
+    image: nginx
+    ports:
+      - 8000:80
+    volumes:
+      - ./app:/var/www/html
+      - ./dockerfiles/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - php-fpm
+
+  php-fpm:
+    build:
+      context: dockerfiles/php-fpm
+      args:
+        TRACER_DOWNLOAD_URL: ${TRACER_DOWNLOAD_URL}
+    volumes:
+      - composer_cache:/root/.composer
+      - ./app:/var/www/html
+    environment:
+      DD_AGENT_HOST: agent
+      DD_TRACE_DEBUG: 'false'
+      DD_SERVICE: random_tests
+      DD_ENV: entrophy
+    depends_on:
+      - agent
+      - redis
+      - mysql
+
+  redis:
+    image: redis:latest
+
+  mysql:
+    image: mysql:latest
+
+  agent:
+    image: datadog/agent:latest
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - /proc/:/host/proc/:ro
+    - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    environment:
+    - DD_API_KEY=${DATADOG_API_KEY}
+
+volumes:
+    composer_cache:

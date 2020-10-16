@@ -136,7 +136,7 @@ class Service
 
     private function maybeEmitAWarning()
     {
-        // #1021 caused by DD_TRACE_ENABLED=true + warning emitted
+        // #1021 caused by DD_TRACE_ENABLED=false + warning emitted
         if ($this->percentOfCases(5)) {
             \trigger_error("Some warning triggered", \E_USER_WARNING);
         }

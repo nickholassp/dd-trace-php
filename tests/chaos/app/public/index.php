@@ -23,7 +23,7 @@ if (getenv('DD_TRACE_ENABLED') !== 'false') {
 
 
 $controller = new \App\Controller();
-$output = $controller->action() . "\n";
+$output = $controller->action();
 
 echo "$output\n";
 

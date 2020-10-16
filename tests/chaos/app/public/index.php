@@ -2,8 +2,16 @@
 
 error_reporting(E_ALL);
 
-// By default we return error, only as the last thing we set 200 instead
-// http_response_code(500);
+http_response_code(500);
+
+ob_start();
+
+// \set_exception_handler(function () {
+//     // error_log('Exception: ' . var_export($ex->getMessage(), 1));
+//     http_response_code(500);
+// });
+
+// trigger_error('aaa', E_USER_ERROR);
 
 require __DIR__ . '/../vendor/autoload.php';
 
@@ -23,5 +31,7 @@ if (getenv('DD_TRACE_ENABLED') !== 'false') {
 $controller = new \App\Controller();
 $output = $controller->action() . "\n";
 
-// http_response_code(200);
 echo "$output\n";
+
+http_response_code(200);
+ob_flush();

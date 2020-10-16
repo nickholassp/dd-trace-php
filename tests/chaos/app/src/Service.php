@@ -2,6 +2,8 @@
 
 namespace App;
 
+use Exception;
+
 class Service
 {
     private $snippets;
@@ -13,8 +15,9 @@ class Service
 
     public function doSomethingUntraced()
     {
+        $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
-        $this->maybeEmitAWarning();
+        $this->maybeSomethingHappens();
         $then = \rand(0, 2);
         if (0 === $then) {
             return;
@@ -23,12 +26,16 @@ class Service
         } elseif (2 === $then) {
             $this->doSomethingTraced1();
         }
+        $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
+        $this->maybeSomethingHappens();
     }
 
     public function doSomethingTraced()
     {
+        $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
+        $this->maybeSomethingHappens();
         $then = \rand(0, 2);
         if (0 === $then) {
             return;
@@ -37,13 +44,16 @@ class Service
         } elseif (2 === $then) {
             $this->doSomethingTraced1();
         }
+        $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
-        $this->maybeEmitAWarning();
+        $this->maybeSomethingHappens();
     }
 
     public function doSomethingUntraced1()
     {
+        $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
+        $this->maybeSomethingHappens();
         $then = \rand(0, 2);
         if (0 === $then) {
             return;
@@ -52,13 +62,14 @@ class Service
         } elseif (2 === $then) {
             $this->doSomethingTraced2();
         }
+        $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
-        $this->maybeEmitAWarning();
+        $this->maybeSomethingHappens();
     }
 
     public function doSomethingTraced1()
     {
-        $this->maybeEmitAWarning();
+        $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
         $then = \rand(0, 2);
         if (0 === $then) {
@@ -68,18 +79,20 @@ class Service
         } elseif (2 === $then) {
             $this->doSomethingTraced2();
         }
+        $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
+        $this->maybeSomethingHappens();
     }
 
     public function doSomethingUntraced2()
     {
         $this->maybeRunSomeIntegrations();
-        $this->maybeEmitAWarning();
+        $this->maybeSomethingHappens();
     }
 
     public function doSomethingTraced2()
     {
-        $this->maybeEmitAWarning();
+        $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
     }
 
@@ -113,6 +126,14 @@ class Service
         ];
     }
 
+    private function maybeSomethingHappens()
+    {
+        $this->maybeEmitAWarning();
+        $this->maybeEmitACaughtException();
+        $this->maybeEmitAnUncaughtException();
+        $this->maybeGenerateAFatal();
+    }
+
     private function maybeEmitAWarning()
     {
         // #1021 caused by DD_TRACE_ENABLED=true + warning emitted
@@ -121,8 +142,42 @@ class Service
         }
     }
 
+    private function maybeEmitACaughtException()
+    {
+        if ($this->percentOfCases(20)) {
+            try {
+                $this->alwaysThrowException('caught exception from chaos');
+            } catch (Exception $e) {
+            }
+        }
+    }
+
+    private function maybeEmitAnUncaughtException()
+    {
+        if ($this->percentOfCases(5)) {
+            $this->alwaysThrowException('uncaught exception from chaos');
+        }
+    }
+
+    private function maybeGenerateAFatal()
+    {
+        if ($this->percentOfCases(1)) {
+            $this->alwaysGenerateAFatal();
+        }
+    }
+
     private function percentOfCases($percent)
     {
         return \rand(0, 99) < $percent;
+    }
+
+    private function alwaysThrowException($message)
+    {
+        throw new Exception($message);
+    }
+
+    private function alwaysGenerateAFatal()
+    {
+        trigger_error('fatal', \E_USER_ERROR);
     }
 }

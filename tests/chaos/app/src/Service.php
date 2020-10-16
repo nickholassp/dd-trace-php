@@ -14,6 +14,7 @@ class Service
     public function doSomethingUntraced()
     {
         $this->maybeRunSomeIntegrations();
+        $this->maybeEmitAWarning();
         $then = \rand(0, 2);
         if (0 === $then) {
             return;
@@ -37,6 +38,7 @@ class Service
             $this->doSomethingTraced1();
         }
         $this->maybeRunSomeIntegrations();
+        $this->maybeEmitAWarning();
     }
 
     public function doSomethingUntraced1()
@@ -51,10 +53,12 @@ class Service
             $this->doSomethingTraced2();
         }
         $this->maybeRunSomeIntegrations();
+        $this->maybeEmitAWarning();
     }
 
     public function doSomethingTraced1()
     {
+        $this->maybeEmitAWarning();
         $this->maybeRunSomeIntegrations();
         $then = \rand(0, 2);
         if (0 === $then) {
@@ -70,10 +74,12 @@ class Service
     public function doSomethingUntraced2()
     {
         $this->maybeRunSomeIntegrations();
+        $this->maybeEmitAWarning();
     }
 
     public function doSomethingTraced2()
     {
+        $this->maybeEmitAWarning();
         $this->maybeRunSomeIntegrations();
     }
 
@@ -105,5 +111,18 @@ class Service
             'mysqli' => 1,
             'phpredis' => 1,
         ];
+    }
+
+    private function maybeEmitAWarning()
+    {
+        // #1021 caused by DD_TRACE_ENABLED=true + warning emitted
+        if ($this->percentOfCases(5)) {
+            \trigger_error("Some warning triggered", \E_USER_WARNING);
+        }
+    }
+
+    private function percentOfCases($percent)
+    {
+        return \rand(0, 99) < $percent;
     }
 }

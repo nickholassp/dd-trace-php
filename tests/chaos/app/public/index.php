@@ -1,21 +1,9 @@
 <?php
 
-// final class Hoge
-// {
-//     private $redis;
-
-//     public function __construct() {
-//         session_set_save_handler($this);
-//         $this->redis = new Redis();
-//     }
-// }
-
-// $hoge = new Hoge();
-
 error_reporting(E_ALL);
 
 // By default we return error, only as the last thing we set 200 instead
-http_response_code(500);
+// http_response_code(500);
 
 require __DIR__ . '/../vendor/autoload.php';
 
@@ -35,5 +23,5 @@ if (getenv('DD_TRACE_ENABLED') !== 'false') {
 $controller = new \App\Controller();
 $output = $controller->action() . "\n";
 
-http_response_code(200);
+// http_response_code(200);
 echo "$output\n";

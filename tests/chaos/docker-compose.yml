@@ -23,12 +23,12 @@ services:
       - ./app:/var/www/html
       - ./tracer-versions:/tracer-versions
     environment:
-      TRACER_VERSION: 0.48.0
+      TRACER_VERSION: 0.48.2
       DD_AGENT_HOST: agent
       DD_TRACE_DEBUG: 'false'
       DD_SERVICE: random_tests
       DD_ENV: entrophy
-      DD_TRACE_ENABLED: 'false'
+      # DD_TRACE_ENABLED: 'false'
     depends_on:
       - agent
       - redis

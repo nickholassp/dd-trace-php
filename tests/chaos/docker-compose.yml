@@ -2,14 +2,6 @@ version: '3.7'
 
 services:
 
-  loadtest:
-    build:
-      context: dockerfiles/vegeta
-    environment:
-      DURATION: 60s
-    depends_on:
-      - nginx
-
   nginx:
     image: nginx
     ports:
@@ -30,12 +22,12 @@ services:
       - composer_cache:/root/.composer
       - ./app:/var/www/html
     environment:
-      TRACER_DOWNLOAD_URL: https://github.com/DataDog/dd-trace-php/releases/download/0.48.1/datadog-php-tracer_0.48.1_amd64.deb
+      TRACER_DOWNLOAD_URL: https://github.com/DataDog/dd-trace-php/releases/download/0.48.2/datadog-php-tracer_0.48.2_amd64.deb
       DD_AGENT_HOST: agent
       DD_TRACE_DEBUG: 'false'
       DD_SERVICE: random_tests
       DD_ENV: entrophy
-      DD_TRACE_ENABLED: 'true'
+      DD_TRACE_ENABLED: 'false'
     depends_on:
       - agent
       - redis

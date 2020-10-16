@@ -16,6 +16,8 @@ services:
     ulimits:
       core: 99999999999
     build:
+      args:
+        php_version: 7.3
       context: dockerfiles/php-fpm
     privileged: true
     volumes:
@@ -23,7 +25,7 @@ services:
       - ./app:/var/www/html
       - ./tracer-versions:/tracer-versions
     environment:
-      TRACER_VERSION: 0.48.2
+      TRACER_VERSION: 0.46.0
       DD_AGENT_HOST: agent
       DD_TRACE_DEBUG: 'false'
       DD_SERVICE: random_tests

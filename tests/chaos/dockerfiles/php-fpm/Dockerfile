@@ -1,13 +1,17 @@
-FROM php:7.3-fpm
+ARG php_version
+
+FROM php:${php_version}-fpm
 
 RUN apt-get update \
     && apt-get install -y tcpdump wget gnupg2 procps vim \
     && apt-get clean
 
-RUN docker-php-ext-install opcache
 RUN docker-php-ext-install mysqli
+RUN docker-php-ext-install opcache
 
 RUN pecl install redis
+# RUN pecl install redis-3.1.6
+
 ADD redis.ini /usr/local/etc/php/conf.d/redis.ini
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer

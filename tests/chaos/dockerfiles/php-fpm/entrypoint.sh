@@ -2,9 +2,8 @@
 
 set -euo
 
-if [ ! -z "${TRACER_DOWNLOAD_URL}" ]; then
-    curl -o /tmp/dd-trace-php.deb -L ${TRACER_DOWNLOAD_URL}
-    dpkg -i /tmp/dd-trace-php.deb
+if [ ! -z "${TRACER_VERSION}" ]; then
+    dpkg -i /tracer-versions/datadog-php-tracer_${TRACER_VERSION}_amd64.deb
 fi
 
 # Enabling core dumps

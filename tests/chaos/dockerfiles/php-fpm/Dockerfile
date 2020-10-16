@@ -1,7 +1,7 @@
 FROM php:7.3-fpm
 
 RUN apt-get update \
-    && apt-get install -y tcpdump wget gnupg2 procps \
+    && apt-get install -y tcpdump wget gnupg2 procps vim \
     && apt-get clean
 
 RUN docker-php-ext-install opcache

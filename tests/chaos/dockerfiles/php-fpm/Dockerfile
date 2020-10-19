@@ -7,7 +7,10 @@ RUN apt-get update \
     && apt-get clean
 
 RUN docker-php-ext-install mysqli
+
+# Opcache
 RUN docker-php-ext-install opcache
+ADD opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 
 RUN pecl install redis
 # RUN pecl install redis-3.1.6

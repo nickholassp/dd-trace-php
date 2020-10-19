@@ -154,14 +154,16 @@ class Service
 
     private function maybeEmitAnUncaughtException()
     {
-        if ($this->percentOfCases(5)) {
+        // TODO: find a percentage that would let us detect spikes due to something wrong
+        if ($this->percentOfCases(0)) {
             $this->alwaysThrowException('uncaught exception from chaos');
         }
     }
 
     private function maybeGenerateAFatal()
     {
-        if ($this->percentOfCases(1)) {
+        // TODO: find a percentage that would let us detect spikes due to something wrong
+        if ($this->percentOfCases(0)) {
             $this->alwaysGenerateAFatal();
         }
     }

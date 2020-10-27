@@ -7,7 +7,7 @@ use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Exception;
 
-class PHPRedis4Test extends IntegrationTestCase
+class PHPRedisTest extends IntegrationTestCase
 {
     const A_STRING = 'A_STRING';
     const A_FLOAT = 'A_FLOAT';

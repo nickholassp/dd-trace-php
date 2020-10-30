@@ -10,6 +10,7 @@ if (getenv('DD_TRACE_ENABLED') !== 'false') {
     \dd_trace_method('Chaos', 'doSomethingTraced', $callback);
     \dd_trace_method('Chaos', 'doSomethingTraced1', $callback);
     \dd_trace_method('Chaos', 'doSomethingTraced2', $callback);
+    \dd_trace_method('Chaos', 'useAGenerator', $callback);
 }
 
 class Chaos
@@ -156,10 +157,26 @@ class Chaos
 
     private function maybeSomethingHappens()
     {
+        $this->maybeUseAGenerator();
         $this->maybeEmitAWarning();
         $this->maybeEmitACaughtException();
         $this->maybeEmitAnUncaughtException();
         $this->maybeGenerateAFatal();
+    }
+
+    private function maybeUseAGenerator()
+    {
+        if ($this->percentOfCases(5)) {
+            $this->useAGenerator();
+        }
+    }
+
+    protected function useAGenerator()
+    {
+        $generator = $this->generator();
+        foreach ($generator as $value) {
+            // doing nothing
+        }
     }
 
     private function maybeEmitAWarning()
@@ -233,6 +250,15 @@ class Chaos
         if ($errno === \E_USER_ERROR) {
             http_response_code(531);
             exit(1);
+        }
+    }
+
+    private function generator()
+    {
+        $number = rand(1, 10);
+        for ($i = 1; $i < $number; $i++) {
+            $this->runSomeIntegrations();
+            yield $i;
         }
     }
 }

@@ -34,10 +34,18 @@ services:
     depends_on:
       - agent
       - redis
+      - memcached
       - mysql
+      - httpbin
 
   redis:
     image: redis:latest
+
+  httpbin:
+    image: kennethreitz/httpbin
+
+  memcached:
+    image: "memcached:1.5-alpine"
 
   mysql:
     image: mysql:5.7

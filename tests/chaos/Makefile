@@ -14,4 +14,4 @@ tracer-versions/datadog-php-tracer_$(TRACER_VERSION)_amd64.deb:
 
 load:
 	@ echo "Running load tests for ${DURATION}."
-	@ echo "GET http://localhost:8000" | vegeta attack -duration=${DURATION} | tee results.bin | vegeta report
+	@ echo "GET http://localhost:8000" | vegeta attack -duration=${DURATION} -connections=30 -rate=50 | tee results.bin | vegeta report

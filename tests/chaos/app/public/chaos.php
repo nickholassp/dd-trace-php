@@ -146,7 +146,9 @@ class Chaos
     private function availableIntegrations()
     {
         return [
+            'memcached' => 1,
             'mysqli' => 1,
+            'curl' => 1,
             'pdo' => 1,
             'phpredis' => 1,
         ];
@@ -163,7 +165,7 @@ class Chaos
     private function maybeEmitAWarning()
     {
         // #1021 caused by DD_TRACE_ENABLED=true + warning emitted
-        if ($this->percentOfCases(1)) {
+        if ($this->percentOfCases(5)) {
             \trigger_error("Some warning triggered", \E_USER_WARNING);
         }
     }
@@ -180,14 +182,14 @@ class Chaos
 
     private function maybeEmitAnUncaughtException()
     {
-        if ($this->allowFatalAndUncaught && $this->percentOfCases(5)) {
+        if ($this->allowFatalAndUncaught && $this->percentOfCases(2)) {
             $this->alwaysThrowException('uncaught exception from chaos');
         }
     }
 
     private function maybeGenerateAFatal()
     {
-        if ($this->allowFatalAndUncaught && $this->percentOfCases(5)) {
+        if ($this->allowFatalAndUncaught && $this->percentOfCases(2)) {
             $this->alwaysGenerateAFatal();
         }
     }
@@ -210,7 +212,7 @@ class Chaos
     public function handleException(\Throwable $ex)
     {
         error_log("Handling Exception: " . $ex->getMessage());
-        http_response_code(510);
+        http_response_code(530);
         exit(1);
     }
 
@@ -229,7 +231,7 @@ class Chaos
         error_log("Handling Error: $errorName - $errstr");
 
         if ($errno === \E_USER_ERROR) {
-            http_response_code(511);
+            http_response_code(531);
             exit(1);
         }
     }
@@ -254,6 +256,23 @@ class Snippets
         $stm = $pdo->query("SELECT VERSION()");
         $version = $stm->fetch();
         $pdo = null;
+    }
+
+    public function memcachedVariant1()
+    {
+        $client = new \Memcached();
+        $client->addServer('memcached', '11211');
+        $client->add('key', 'value');
+        $client->get('key');
+    }
+
+    public function curlVariant1()
+    {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, "httpbin/get?key=value");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        $output = curl_exec($ch);
+        curl_close($ch);
     }
 
     public function phpredisVariant1()

@@ -3,7 +3,14 @@ ARG php_version
 FROM php:${php_version}-fpm
 
 RUN apt-get update \
-    && apt-get install -y tcpdump wget gnupg2 procps vim \
+    && apt-get install -y \
+        tcpdump \
+        wget \
+        gnupg2 \
+        procps \
+        vim \
+        libmemcached-dev \
+        zlib1g-dev \
     && apt-get clean
 
 RUN docker-php-ext-install mysqli pdo pdo_mysql
@@ -14,6 +21,9 @@ ADD opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 
 RUN pecl install redis
 # RUN pecl install redis-3.1.6
+
+RUN pecl install memcached
+RUN docker-php-ext-enable memcached
 
 ADD redis.ini /usr/local/etc/php/conf.d/redis.ini
 

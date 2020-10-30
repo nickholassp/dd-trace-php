@@ -6,7 +6,7 @@ RUN apt-get update \
     && apt-get install -y tcpdump wget gnupg2 procps vim \
     && apt-get clean
 
-RUN docker-php-ext-install mysqli
+RUN docker-php-ext-install mysqli pdo pdo_mysql
 
 # Opcache
 RUN docker-php-ext-install opcache

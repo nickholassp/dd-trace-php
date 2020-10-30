@@ -25,7 +25,7 @@ services:
       - ./app:/var/www/html
       - ./tracer-versions:/tracer-versions
     environment:
-      TRACER_VERSION: 0.48.3
+      TRACER_VERSION: ${TRACER_VERSION}
       DD_AGENT_HOST: agent
       DD_TRACE_DEBUG: 'false'
       DD_SERVICE: random_tests

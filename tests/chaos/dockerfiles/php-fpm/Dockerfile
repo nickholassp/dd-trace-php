@@ -11,6 +11,7 @@ RUN apt-get update \
         vim \
         libmemcached-dev \
         zlib1g-dev \
+        unzip \
     && apt-get clean
 
 RUN docker-php-ext-install mysqli pdo pdo_mysql

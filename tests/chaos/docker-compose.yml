@@ -33,6 +33,7 @@ services:
       DD_TRACE_ENABLED: 'true'
     depends_on:
       - agent
+      - elasticsearch
       - redis
       - memcached
       - mysql
@@ -46,6 +47,9 @@ services:
 
   memcached:
     image: "memcached:1.5-alpine"
+
+  elasticsearch:
+    image: "elasticsearch:6.8.13"
 
   mysql:
     image: mysql:5.7

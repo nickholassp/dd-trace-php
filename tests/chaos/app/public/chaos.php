@@ -2,6 +2,10 @@
 
 // Do not use function_exists('DDTrace\...') because if DD_TRACE_ENABLED is not false and the function does not exist
 // then we MUST generate an error
+
+use Elasticsearch\ClientBuilder;
+use GuzzleHttp\Client as GuzzleClient;
+
 if (getenv('DD_TRACE_ENABLED') !== 'false') {
     // Tracing manual functions
     $callback = function (\DDTrace\SpanData $span) {
@@ -147,6 +151,8 @@ class Chaos
     private function availableIntegrations()
     {
         return [
+            'elasticsearch' => 1,
+            'guzzle' => 1,
             'memcached' => 1,
             'mysqli' => 1,
             'curl' => 1,
@@ -295,10 +301,32 @@ class Snippets
     public function curlVariant1()
     {
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, "httpbin/get?key=value");
+        curl_setopt($ch, CURLOPT_URL, 'httpbin/get?client=curl');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         $output = curl_exec($ch);
         curl_close($ch);
+    }
+
+    public function elasticsearchVariant1()
+    {
+        $clientBuilder = ClientBuilder::create();
+        $clientBuilder->setHosts(['elasticsearch']);
+        $client = $clientBuilder->build();
+
+        $params = [
+            'index' => 'my_index',
+            'type' => 'my_type',
+            'id' => 'my_id',
+            'body' => ['testField' => 'abc']
+        ];
+
+        $client->index($params);
+    }
+
+    public function guzzleVariant1()
+    {
+        $client = new GuzzleClient();
+        $client->get('httpbin/get?client=guzzle');
     }
 
     public function phpredisVariant1()

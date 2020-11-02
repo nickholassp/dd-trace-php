@@ -3,6 +3,7 @@
 // Do not use function_exists('DDTrace\...') because if DD_TRACE_ENABLED is not false and the function does not exist
 // then we MUST generate an error
 
+use App\Helper;
 use Elasticsearch\ClientBuilder;
 use GuzzleHttp\Client as GuzzleClient;
 
@@ -21,11 +22,17 @@ class Chaos
 {
     private $snippets;
 
+    /**
+     * @var Helper
+     */
+    private $manualInstrumentationHelper;
+
     private $allowFatalAndUncaught = false;
 
     public function __construct($allowFatalAndUncaught = false)
     {
         $this->snippets = new Snippets();
+        $this->manualInstrumentationHelper = new Helper();
         $this->allowFatalAndUncaught = $allowFatalAndUncaught;
     }
 
@@ -44,6 +51,7 @@ class Chaos
         $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
         $this->maybeSomethingHappens();
+        $this->manualInstrumentationHelper->collect('some_key', 'some_value');
         if ($this->percentOfCases(80)) {
             if ($this->percentOfCases(70)) {
                 $this->doSomethingUntraced1();
@@ -63,6 +71,7 @@ class Chaos
         $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
         $this->maybeSomethingHappens();
+        $this->manualInstrumentationHelper->getCollectedProperties();
         if ($this->percentOfCases(80)) {
             if ($this->percentOfCases(70)) {
                 $this->doSomethingUntraced1();
@@ -82,6 +91,7 @@ class Chaos
         $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
         $this->maybeSomethingHappens();
+        $this->manualInstrumentationHelper->getCollectedProperties();
         if ($this->percentOfCases(80)) {
             if ($this->percentOfCases(70)) {
                 $this->doSomethingUntraced2();

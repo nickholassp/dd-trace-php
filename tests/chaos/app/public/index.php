@@ -3,6 +3,7 @@
 use DDTrace\GlobalTracer;
 
 require __DIR__ . '/../vendor/autoload.php';
+require __DIR__ . '/Helper.php';
 
 require __DIR__ . '/chaos.php';
 $chaos = new Chaos($allowFatalAndUncaught = true);

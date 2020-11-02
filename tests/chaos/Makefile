@@ -1,6 +1,10 @@
 DURATION := 30s
 TRACER_VERSION := 0.49.0
 
+clean:
+	docker-compose down -v
+	rm -rf app/vendor
+
 build:
 	docker-compose build
 

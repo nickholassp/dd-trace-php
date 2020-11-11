@@ -23,10 +23,11 @@ x-aliases:
         - mysql_integration
         - memcached_integration
       environment:
-        - REDIS_HOSTNAME=redis_integration
-        - DDAGENT_HOSTNAME=ddagent_integration
         - COMPOSER_MEMORY_LIMIT=-1
+        - DDAGENT_HOSTNAME=ddagent_integration
+        - HTTPBIN_HOSTNAME=httpbin_integration
         - PHP_IDE_CONFIG=serverName=docker
+        - REDIS_HOSTNAME=redis_integration
       cap_add:
         - SYS_PTRACE
   - &base_54_service
